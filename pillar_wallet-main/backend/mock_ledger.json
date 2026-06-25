@@ -1,0 +1,23 @@
+{
+  "universities": {
+    "Pillar State University": {
+      "name": "Pillar State University",
+      "publicKey": "04a2ca257adf621d9f138530ef801c6cd86495b5a288f8b65475b781e48a520e1c04003dd29023c5685bc26b0b0133396d4344486a7b960ecf5c97469a4d859690"
+    },
+    "BOWEN UNIVERSITY": {
+      "name": "BOWEN UNIVERSITY",
+      "publicKey": "04357b63a65a00f4cd57986848c49ee201b300887e78cc3588df8c2374ae31bb05e3de10c6c3719980d1f159190f8de18e831da0d6bfbb423628fdf0c238e9fdcc"
+    }
+  },
+  "credentials": {
+    "CERT-2026-0002": {
+      "credentialID": "CERT-2026-0002",
+      "studentPubKey": "047c4f561de6d9b2bc55023d20acf5ef8fd2bf9337bf0165b2bda54869638699acc880269c609a2fa38602587e6f6bfc6cad01e316b0c535c9d21684a94cfa1eb8",
+      "pdfHash": "d69afb2b193e0d54326b5344e7b99492787227a4a0234896a15d116e5dfc0fd9",
+      "issuerSignature": "30440220554b2e72db31989eef017060140cfdf619ecc0e7bb0d380c5386333d81d5abb702200c01db2bfa2357ddd10ad31236a032b0cc5f14b3f6adbbb360479dab138a0fa5",
+      "ipfsCID": "QmLocalMockIPFS3da7998520a686d01f270db6cdd115",
+      "ipfsCid": "QmLocalMockIPFS3da7998520a686d01f270db6cdd115",
+      "issuerName": "BOWEN UNIVERSITY"
+    }
+  }
+}
