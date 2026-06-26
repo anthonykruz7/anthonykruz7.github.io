@@ -277,16 +277,14 @@
             regBtn.disabled = true;
 
             try {
-                const res = await fetch(`${API_URL}/register`, {
-    method: 'POST',
-    headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-    },
-    body: JSON.stringify({ name, authCode }),
-    mode: 'cors'
+                const data = await new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', `${API_URL}/register`);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.onload = () => resolve(JSON.parse(xhr.responseText));
+    xhr.onerror = () => reject(new Error('Network request failed'));
+    xhr.send(JSON.stringify({ name, authCode }));
 });
-                const data = await res.json();
                 if (!data.success) throw new Error(data.error);
 
                 document.getElementById('regPrivKey').innerText = data.privateKey;
