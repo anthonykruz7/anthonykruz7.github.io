@@ -12,10 +12,18 @@ const app = express();
 const cors = require('cors');
 const path = require('path');
 
-app.use(cors({ origin: '*' }));
+app.use(cors({
+    origin: '*',
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+app.options('*', cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../frontend')));
 app.use('/backend', express.static(__dirname));
+
+// In-memory mock ledger store
+const mockLedger = {};
 
 // Endpoint to retrieve locally stored mock IPFS files
 app.get('/ipfs/:cid', (req, res) => {
@@ -61,11 +69,6 @@ async function signHash(hashBuffer, privateKeyHex) {
 
 /**
  * ISSUANCE ENDPOINT
- * 1. Hashes the PDF
- * 2. Signs the Hash
- * 3. Converts PDF to Base64 String
- * 4. Encrypts Base64 using Student's Public Key via eccrypto-js
- * 5. Pins to IPFS and records on Fabric
  */
 app.post('/issue', upload.single('pdf'), async (req, res) => {
     let gateway, client;
@@ -86,12 +89,10 @@ app.post('/issue', upload.single('pdf'), async (req, res) => {
         const signatureBuffer = await signHash(pdfHashBuffer, issuerPrivateKey);
         const issuerSignature = signatureBuffer.toString('hex');
 
-        // 2. Data Transformation (Nuclear Option: Base64)
-        // This ensures no raw binary data is lost during JSON stringification
+        // 2. Data Transformation
         const pdfBase64 = rawPdfBuffer.toString('base64');
 
         // 3. Encrypt using the student's Public Key
-        // eccrypto-js expects a Buffer for the public key and the message
         const pubKeyBuf = Buffer.from(studentPubKey, 'hex');
         const encrypted = await eccrypto.encrypt(pubKeyBuf, Buffer.from(pdfBase64));
 
@@ -108,13 +109,25 @@ app.post('/issue', upload.single('pdf'), async (req, res) => {
         const ipfsCid = await ipfs.uploadBuffer(encryptedPayload, `${credentialID}.json`);
 
         // 6. Blockchain Commitment
-        const connection = await getContract();
-        gateway = connection.gateway;
-        client = connection.client;
-
-        await connection.contract.submit('IssueCredential', {
-            arguments: [credentialID, studentPubKey, pdfHash, issuerSignature, ipfsCid, issuerName]
-        });
+        if (process.env.USE_MOCK_LEDGER !== 'true') {
+            const connection = await getContract();
+            gateway = connection.gateway;
+            client = connection.client;
+            await connection.contract.submit('IssueCredential', {
+                arguments: [credentialID, studentPubKey, pdfHash, issuerSignature, ipfsCid, issuerName]
+            });
+        } else {
+            console.log(`[MOCK LEDGER]: Storing credential ${credentialID} in memory`);
+            mockLedger[`cred_${credentialID}`] = {
+                credentialID,
+                studentPubKey,
+                pdfHash,
+                issuerSignature,
+                ipfsCID: ipfsCid,
+                issuerName
+            };
+            mockLedger[`uni_${issuerName}`] = { publicKey: eccrypto.getPublic(Buffer.from(issuerPrivateKey, 'hex')).toString('hex') };
+        }
 
         res.json({
             success: true,
@@ -133,9 +146,7 @@ app.post('/issue', upload.single('pdf'), async (req, res) => {
 });
 
 /**
- * REGISTRATION ENDPOINT (Module 2)
- * Registers a new University on the blockchain.
- * Returns generated Private Key (User must save this!).
+ * REGISTRATION ENDPOINT
  */
 app.post('/register', async (req, res) => {
     let gateway, client;
@@ -152,14 +163,18 @@ app.post('/register', async (req, res) => {
         const pubKeyHex = publicKey.toString('hex');
         const privKeyHex = privateKey.toString('hex');
 
-        // Register on Blockchain
-        const connection = await getContract();
-        gateway = connection.gateway;
-        client = connection.client;
-
-        await connection.contract.submit('RegisterUniversity', {
-            arguments: [name, pubKeyHex]
-        });
+        // Skip blockchain if mock mode
+        if (process.env.USE_MOCK_LEDGER !== 'true') {
+            const connection = await getContract();
+            gateway = connection.gateway;
+            client = connection.client;
+            await connection.contract.submit('RegisterUniversity', {
+                arguments: [name, pubKeyHex]
+            });
+        } else {
+            console.log(`[MOCK LEDGER]: Skipping blockchain for registration of ${name}`);
+            mockLedger[`uni_${name}`] = { publicKey: pubKeyHex };
+        }
 
         res.json({
             success: true,
@@ -181,38 +196,49 @@ app.post('/register', async (req, res) => {
 
 /**
  * VERIFY ENDPOINT
- * Fetches the metadata record from the Fabric ledger.
  */
 app.post('/verify', async (req, res) => {
     let gateway, client;
     try {
         const { credentialID } = req.body;
-        const connection = await getContract();
-        gateway = connection.gateway;
-        client = connection.client;
 
-        const resultBytes = await connection.contract.evaluate('QueryCredential', {
-            arguments: [credentialID]
-        });
-        const record = JSON.parse(new TextDecoder().decode(resultBytes));
+        if (process.env.USE_MOCK_LEDGER !== 'true') {
+            const connection = await getContract();
+            gateway = connection.gateway;
+            client = connection.client;
 
-        // 2. Refresh Public Key from Chain (Using Issuer Name)
-        const uniBytes = await connection.contract.evaluate('QueryUniversity', {
-            arguments: [record.issuerName]
-        });
-        const uniRecord = JSON.parse(new TextDecoder().decode(uniBytes));
+            const resultBytes = await connection.contract.evaluate('QueryCredential', {
+                arguments: [credentialID]
+            });
+            const record = JSON.parse(new TextDecoder().decode(resultBytes));
 
-        res.json({ success: true, record, issuerPublicKey: uniRecord.publicKey });
+            const uniBytes = await connection.contract.evaluate('QueryUniversity', {
+                arguments: [record.issuerName]
+            });
+            const uniRecord = JSON.parse(new TextDecoder().decode(uniBytes));
+
+            res.json({ success: true, record, issuerPublicKey: uniRecord.publicKey });
+        } else {
+            console.log(`[MOCK LEDGER]: Querying credential ${credentialID} from memory`);
+            const record = mockLedger[`cred_${credentialID}`];
+            if (!record) throw new Error(`Credential ${credentialID} not found in mock ledger`);
+
+            const uniRecord = mockLedger[`uni_${record.issuerName}`];
+            if (!uniRecord) throw new Error(`University ${record.issuerName} not found in mock ledger`);
+
+            res.json({ success: true, record, issuerPublicKey: uniRecord.publicKey });
+        }
 
     } catch (err) {
         console.error('QUERY FAILURE:', err);
-        res.status(500).json({ error: "Blockchain query failed" });
+        res.status(500).json({ error: err.message || "Blockchain query failed" });
     } finally {
         if (gateway) gateway.close();
         if (client) client.close();
     }
 });
 
-app.listen(3000, '0.0.0.0', () => {
-    console.log('--- 🚀 NUCLEAR ALIGNMENT API: ACTIVE ON PORT 3000 🚀 ---');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`--- 🚀 NUCLEAR ALIGNMENT API: ACTIVE ON PORT ${PORT} 🚀 ---`);
 });
