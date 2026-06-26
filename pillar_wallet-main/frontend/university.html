@@ -265,9 +265,7 @@
         tabBatch.addEventListener('click', () => switchTab('batch'));
 
         // --- API Config ---
-        const API_URL = (window.location.port === '3000')
-            ? ''
-            : 'http://127.0.0.1:3000';
+        const API_URL = 'https://pillarwallet2026.onrender.com';
 
         // --- Logic: Register ---
         regBtn.addEventListener('click', async () => {
@@ -280,10 +278,14 @@
 
             try {
                 const res = await fetch(`${API_URL}/register`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name, authCode })
-                });
+    method: 'POST',
+    headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+    },
+    body: JSON.stringify({ name, authCode }),
+    mode: 'cors'
+});
                 const data = await res.json();
                 if (!data.success) throw new Error(data.error);
 

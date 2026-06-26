@@ -11,6 +11,10 @@
     "warton university": {
       "name": "warton university",
       "publicKey": "048736adcd9d5f8d7e2069bafe354dc9670a26d35c3224d82bd9925ef907071cdf4031d45a6f43c03e485cc29c7ae67923b10255b8ef4e8ca554ebe71ad1bc3c59"
+    },
+    "Jiggy University": {
+      "name": "Jiggy University",
+      "publicKey": "04e30e2c2ca5a37f4dd06b27ab650a7b56aed14a69cb5dc8e68400fddaab257a6606fd47d413c2f767bccc6bc1854f3316c101c16862b267348b5e8da744d6d29e"
     }
   },
   "credentials": {
