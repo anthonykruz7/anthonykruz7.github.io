@@ -7,6 +7,10 @@
     "BOWEN UNIVERSITY": {
       "name": "BOWEN UNIVERSITY",
       "publicKey": "04357b63a65a00f4cd57986848c49ee201b300887e78cc3588df8c2374ae31bb05e3de10c6c3719980d1f159190f8de18e831da0d6bfbb423628fdf0c238e9fdcc"
+    },
+    "warton university": {
+      "name": "warton university",
+      "publicKey": "048736adcd9d5f8d7e2069bafe354dc9670a26d35c3224d82bd9925ef907071cdf4031d45a6f43c03e485cc29c7ae67923b10255b8ef4e8ca554ebe71ad1bc3c59"
     }
   },
   "credentials": {
